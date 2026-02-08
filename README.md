@@ -1,4 +1,4 @@
-# 🎓 ระบบบันทึกและประเมินผลการเรียน (Student Evaluation System)
+# 🎓 ระบบบันทึกและประเมินผลการอ่าน การเขียน การฟัง และการพูด (Student Evaluation System)
 
 ![Version](https://img.shields.io/badge/version-5.1.0-blue.svg) ![Status](https://img.shields.io/badge/status-stable-green.svg) ![Platform](https://img.shields.io/badge/platform-Google%20Apps%20Script-orange.svg)
 
