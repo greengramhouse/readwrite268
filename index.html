@@ -540,7 +540,7 @@
         appState.config.forEach(conf => {
           const val = student.scores[conf.colIndex] || "";
           const interp = getInterpretation(val, conf.criteriaId, conf.max);
-          const isTotal = conf.header === 'รวม'; // Check if this is the "Total" column
+          const isTotal = conf.group === 'รวม'; // Check if this is a "Total" column (by group)
           
           cells += `
             <td class="p-2 align-top border-r dark:border-gray-700 relative">
@@ -589,39 +589,46 @@
       updateStats();
     }
 
-    // --- NEW FUNCTION: Auto-calculate Sum ---
+    // --- Auto-calculate Sum (supports multiple "รวม" subtotal columns) ---
     function recalculateStudentTotal(studentIdx) {
       const student = appState.students[studentIdx];
-      let total = 0;
-      let totalConfig = null;
+      let pendingCols = []; // สะสมคอลัมน์ย่อยก่อนถึง "รวม" แต่ละตัว
 
-      // 1. Find Total Config & Sum others
       appState.config.forEach(c => {
-        if (c.header === 'รวม') {
-          totalConfig = c;
+        if (c.group === 'รวม') {
+          // คำนวณผลรวมเฉพาะคอลัมน์ที่อยู่ก่อนหน้า "รวม" ตัวนี้
+          let subtotal = 0;
+          let hasAnyValue = false;
+          pendingCols.forEach(pc => {
+            const val = parseFloat(student.scores[pc.colIndex]);
+            if (!isNaN(val)) {
+              subtotal += val;
+              hasAnyValue = true;
+            }
+          });
+
+          // ถ้ายังไม่มีคอลัมน์ย่อยไหนกรอกเลย → ค่ารวม = null (ยังไม่กรอก)
+          const finalValue = hasAnyValue ? subtotal : null;
+          student.scores[c.colIndex] = finalValue;
+
+          // อัปเดต DOM (Input & Badge)
+          const input = document.querySelector(`input[data-student="${studentIdx}"][data-col="${c.colIndex}"]`);
+          if (input) {
+            input.value = hasAnyValue ? subtotal : '';
+            const badge = document.getElementById(`badge-${studentIdx}-${c.colIndex}`);
+            if (badge) {
+              const interp = getInterpretation(finalValue, c.criteriaId, c.max);
+              badge.innerHTML = interp.html;
+            }
+          }
+
+          // รีเซ็ตรายการคอลัมน์ย่อย เพื่อเริ่มนับกลุ่มถัดไป
+          pendingCols = [];
         } else {
-          // Sum only numeric values from other columns
-          const val = parseFloat(student.scores[c.colIndex]);
-          if (!isNaN(val)) total += val;
+          // สะสมคอลัมน์ย่อยไว้รอ "รวม" ตัวถัดไป
+          pendingCols.push(c);
         }
       });
-
-      // 2. If Total Column exists, update it
-      if (totalConfig) {
-        // Update State
-        student.scores[totalConfig.colIndex] = total;
-
-        // Update DOM (Input & Badge)
-        const input = document.querySelector(`input[data-student="${studentIdx}"][data-col="${totalConfig.colIndex}"]`);
-        if (input) {
-          input.value = total;
-          const badge = document.getElementById(`badge-${studentIdx}-${totalConfig.colIndex}`);
-          if (badge) {
-            const interp = getInterpretation(total, totalConfig.criteriaId, totalConfig.max);
-            badge.innerHTML = interp.html;
-          }
-        }
-      }
     }
 
     function updateStats() {
@@ -807,7 +814,7 @@
         const students = roomItem.data.students;
         const criteria = roomItem.data.criteria;
 
-        pdfContent.push({ text: `\nห้อง: ${roomName} (ครู${teacher})`, style: 'roomHeader' });
+        pdfContent.push({ text: `\nห้อง: ${roomName} (${teacher})`, style: 'roomHeader' });
         const summaryBody = [[{ text: 'หัวข้อการประเมิน', style: 'tableHeader' }, { text: 'ดีมาก', style: 'tableHeader', alignment: 'center' }, { text: 'ดี', style: 'tableHeader', alignment: 'center' }, { text: 'พอใช้', style: 'tableHeader', alignment: 'center' }, { text: 'ปรับปรุง', style: 'tableHeader', alignment: 'center' }, { text: 'รวม', style: 'tableHeader', alignment: 'center' }]];
 
         config.forEach(c => {
